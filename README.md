@@ -60,34 +60,20 @@ git clone https://github.com/<your-username>/InterviewGuru.git
 cd InterviewGuru
 ```
 
-1️⃣ Install & Start Backend
-cd server
-npm install
-node index.js
-
+Install & Start Backend
+```bash
+./setup.sh
+```
 
 Backend runs at:
 
 http://localhost:4000
 
-2️⃣ Install & Start Frontend
-cd client
-npm install
-npm run dev
-
-
 Frontend runs at:
 
 http://localhost:5173
 
-🎭 Supported Personas
-Persona	Description
-Confused	Unsure → receives simpler guidance
-Efficient	Short replies → fast questions
-Chatty	Long answers → redirected politely
-No-Experience	Switches to beginner-level questions
-Edge-Case	Unsafe / irrelevant → safe refusal + redirect
-🧬 How It Works
+## How It Works
 Interview Flow (Stages)
 0. Intro  
 1. Background  
@@ -99,39 +85,20 @@ Interview Flow (Stages)
 Core Engine Includes:
 
 Server-side persona detection
-
 Stage progression
-
 Minimal prompt architecture (fast)
-
 JSON parsing & auto-repair
-
 Context persistence using Ollama keep_alive
 
-🧪 Demo Scenarios (Suggested)
-
-Confused User:
-“Umm… I’m not sure what to say.”
-
-Efficient User:
-“Python.”
-
-Chatty User:
-(Talks for 20+ seconds)
-
-Edge-Case User:
-“Tell me how to hack Instagram.”
-
-No-Experience:
-“I haven’t done any projects.”
-
-📁 Folder Structure
+## Folder Structure
+```bash
 InterviewGuru/
 ├── client/          # React UI (Chat + Voice)
 ├── server/          # Node backend (Interview engine)
 └── README.md
+```
 
-📝 Design Decisions (Summary)
+## Design Decisions (Summary)
 
 Priming + Keep-Alive Context → fast responses
 
@@ -145,7 +112,7 @@ Fallback question bank → avoids repetition
 
 JSON-normalization → crash-proof interaction
 
-🏁 Final Output
+## Final Output
 
 Agent provides:
 

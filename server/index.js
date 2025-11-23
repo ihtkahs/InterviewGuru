@@ -26,7 +26,7 @@ async function callOllama(prompt) {
     {
       model: MODEL,
       prompt,
-      stream: true,
+      stream: false,
       temperature: 0.2
     },
     { timeout: 120_000 }
@@ -110,6 +110,8 @@ app.post('/api/respond', async (req, res) => {
 
     const rawResponse = await callOllama(prompt);
     const parsed = tryParseJSON(rawResponse) || { raw: rawResponse };
+
+    console.log(rawResponse);
 
     // Fallback next question
     if (!parsed.nextQuestion || parsed.nextQuestion.trim() === "") {

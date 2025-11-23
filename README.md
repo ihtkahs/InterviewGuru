@@ -47,8 +47,6 @@ Node.js v18+
 Ollama installed & running
 👉 https://ollama.com
 
-Recommended model:
-
 Chrome browser (best voice support)
 
 ## Setup (Development)
@@ -56,7 +54,7 @@ Chrome browser (best voice support)
 Clone repository:
 
 ```bash
-git clone https://github.com/<your-username>/InterviewGuru.git
+git clone https://github.com/ihtkahs/InterviewGuru.git
 cd InterviewGuru
 ```
 
@@ -100,28 +98,18 @@ InterviewGuru/
 
 ## Design Decisions (Summary)
 
-Priming + Keep-Alive Context → fast responses
-
-Minimal prompt strategy → lower token load
-
-Persona engine (server-side) → reliable behavior
-
-Stage model → prevents loops & maintains flow
-
-Fallback question bank → avoids repetition
-
-JSON-normalization → crash-proof interaction
+- Priming + Keep-Alive Context → fast responses
+- Minimal prompt strategy → lower token load
+- Persona engine (server-side) → reliable behavior
+- Stage model → prevents loops & maintains flow
+- Fallback question bank → avoids repetition
+- JSON-normalization → crash-proof interaction
 
 ## Final Output
 
-Agent provides:
-
-Natural follow-up questions
-
-Role-based interview
-
-Beginner adaptation
-
-Safe redirections
-
-End-of-interview summary
+*Agent provides:*
+  - Natural follow-up questions
+  - Role-based interview
+  - Beginner adaptation
+  - Safe redirections
+  - End-of-interview summary

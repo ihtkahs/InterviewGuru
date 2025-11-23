@@ -49,17 +49,16 @@ Ollama installed & running
 
 Recommended model:
 
-ollama pull llama3:8b
-
-
 Chrome browser (best voice support)
 
-🛠 Setup (Development)
+## Setup (Development)
 
 Clone repository:
 
+```bash
 git clone https://github.com/<your-username>/InterviewGuru.git
 cd InterviewGuru
+```
 
 1️⃣ Install & Start Backend
 cd server

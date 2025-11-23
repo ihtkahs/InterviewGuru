@@ -73,7 +73,9 @@ http://localhost:5173
 
 ## Architecture
 
-![Architecture](./architecture.jpg)
+<p align="center">
+  <img src="./architecture.png" width="650" alt="Architecture Diagram" />
+</p>
 
 ## How It Works
 Interview Flow (Stages)

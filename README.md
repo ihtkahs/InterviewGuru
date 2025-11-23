@@ -73,9 +73,7 @@ http://localhost:5173
 
 ## Architecture
 
-<p align="center">
-  <img src="./architecture.png" width="650" alt="Architecture Diagram" />
-</p>
+![Architecture Diagram](./architecture.jpg)
 
 ## How It Works
 Interview Flow (Stages)
@@ -120,3 +118,7 @@ InterviewGuru/
   - Beginner adaptation
   - Safe redirections
   - End-of-interview summary
+
+## Screenshots
+
+![Screenshots](./screenshots.jpg)

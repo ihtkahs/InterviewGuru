@@ -13,14 +13,14 @@ It supports voice and chat interviews, detects user personas, adapts its questio
 - Chat Mode with clean UI
 
 - Persona-Aware Interviewing
-    Confused User → simplified guidance
-    Efficient User → short, fast questions
-    Chatty User → redirection
-    Edge-Case User → safe refusal
-    No-Experience User → beginner-friendly questions
+    - Confused User → simplified guidance
+    - Efficient User → short, fast questions
+    - Chatty User → redirection
+    - Edge-Case User → safe refusal
+    - No-Experience User → beginner-friendly questions
 
 - Stage-Based Interview Flow
-    Intro → Background → Basics → Technical → Scenarios → Wrap-up
+    - Intro → Background → Basics → Technical → Scenarios → Wrap-up
 
 - Adaptive Follow-Up Questions
 

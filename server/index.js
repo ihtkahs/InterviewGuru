@@ -176,6 +176,8 @@ app.post('/api/respond', async (req, res) => {
       rawResponse = await callOllama(prompt, { keep_alive: null, temperature: 0.18 });
     }
 
+    console.log(rawResponse);
+
     // ---------- JSON AUTO-REPAIR ----------
     let parsed = tryParseJSON(rawResponse);
 
@@ -199,7 +201,7 @@ app.post('/api/respond', async (req, res) => {
       }
 
       if (typeof val === "object") {
-        const keys = ["q", "question", "text", "next", "ask", "prompt", "questionText"];
+        const keys = ["q", "question", "text", "next", "ask", "prompt", "questionText", "feedback", "description", "label"];
         for (const k of keys) {
           if (typeof val[k] === "string") return val[k].trim();
         }

@@ -1,27 +1,24 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import axios from 'axios';
 
 /**
- * VoiceMode component:
- * - When user clicks "Start Voice", it enters a continuous loop:
- *   listen() -> send -> synthesize reply -> listen() again
- * - "Stop Voice" exits the loop and stops recognition.
- * - Uses Web Speech API for STT and SpeechSynthesis for TTS.
- *
- * Props:
- * - session: session object { id, role, level, history }
- * - onUpdate: callback to refresh session history after each model reply
+ * VoiceMode Component with imperative handle
  */
-
-export default function VoiceMode({ session, onUpdate }) {
+const VoiceMode = forwardRef(function VoiceMode({ session, onUpdate }, ref) {
   const [active, setActive] = useState(false);
   const [listening, setListening] = useState(false);
-  const [status, setStatus] = useState('idle'); // idle | listening | thinking | speaking
+  const [status, setStatus] = useState('idle');
   const recognitionRef = useRef(null);
   const stopFlagRef = useRef(false);
 
-  // init SpeechRecognition
-  useEffect(()=> {
+  // expose startVoice() to parent
+  useImperativeHandle(ref, () => ({
+    startVoice,
+    speak: speakText
+  }));
+
+  // init STT
+  useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       recognitionRef.current = null;
@@ -31,119 +28,103 @@ export default function VoiceMode({ session, onUpdate }) {
     rec.lang = 'en-US';
     rec.interimResults = false;
     rec.maxAlternatives = 1;
+
     rec.onstart = () => { setListening(true); setStatus('listening'); };
-    rec.onend = () => { setListening(false); /* we will restart manually if active */ };
-    rec.onerror = (e) => { console.warn('SpeechRecognition error', e); setListening(false); };
+    rec.onend = () => { setListening(false); };
+    rec.onerror = () => { setListening(false); };
+
     recognitionRef.current = rec;
   }, []);
 
-  // Helper: speak text and return promise when speaking done
+  // speak text
   function speakText(text) {
     return new Promise((resolve) => {
       if (!window.speechSynthesis) return resolve();
       const ut = new SpeechSynthesisUtterance(text);
       ut.lang = 'en-US';
       ut.rate = 1.0;
-      ut.onend = () => { resolve(); };
-      ut.onerror = () => { resolve(); };
-      // cancel any current speech then speak
+      ut.onend = resolve;
+
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(ut);
     });
   }
 
-  // Helper: single recognition -> returns recognized text or null
-    function singleListen() {
+  // listen once
+  function singleListen() {
     return new Promise((resolve) => {
-        const rec = recognitionRef.current;
-        if (!rec) return resolve(null);
+      const rec = recognitionRef.current;
+      if (!rec) return resolve(null);
 
-        // clean previous handlers
-        rec.onresult = null;
-        rec.onerror = null;
-        rec.onend = null;
+      rec.onresult = null;
+      rec.onerror = null;
+      rec.onend = null;
 
-        let transcript = null;
+      let transcript = null;
 
-        rec.onresult = (e) => {
+      rec.onresult = (e) => {
         transcript = e.results[0][0].transcript;
         resolve(transcript);
-        };
+      };
 
-        rec.onerror = () => {
-        resolve(null);
-        };
-
-        rec.onend = () => {
+      rec.onerror = () => resolve(null);
+      rec.onend = () => {
         if (!transcript) resolve(null);
-        };
+      };
 
-        try {
-        rec.abort(); // IMPORTANT FIX
+      try {
+        rec.abort();
         rec.start();
-        } catch (err) {
-        console.warn("Recognition failed:", err);
+      } catch {
         resolve(null);
-        }
-    });
-    }
-
-  // Main voice loop
-  async function voiceLoop() {
-  stopFlagRef.current = false;
-  let emptyCount = 0;
-
-  while (!stopFlagRef.current) {
-    if (!session) break;
-
-    setStatus("listening");
-    const userText = await singleListen();
-    if (stopFlagRef.current) break;
-
-    if (!userText) {
-      emptyCount++;
-      setStatus("no-speech");
-
-      if (emptyCount >= 5) {
-        setStatus("mic-error");
-        console.log("Stopping due to repeated empty input");
-        break;
       }
-
-      await new Promise(r => setTimeout(r, 1200));
-      continue;
-    }
-
-    emptyCount = 0; 
-    setStatus("thinking");
-
-    try {
-      await axios.post("http://localhost:4000/api/respond", {
-        sessionId: session.id,
-        text: userText
-      });
-      if (onUpdate) await onUpdate();
-    } catch (e) {
-      console.warn("respond error", e);
-    }
-
-    // Speak last interviewer reply
-    const last = await axios.get(
-      `http://localhost:4000/api/session/${session.id}`
-    );
-    const hist = last.data.session.history;
-    const lastMsg = hist.reverse().find(m => m.role === "interviewer");
-
-    setStatus("speaking");
-    await speakText(lastMsg?.text || "");
+    });
   }
 
-  setStatus("idle");
-}
+  // main loop
+  async function voiceLoop() {
+    stopFlagRef.current = false;
+    let emptyCount = 0;
+
+    while (!stopFlagRef.current) {
+      if (!session) break;
+
+      setStatus("listening");
+      const userText = await singleListen();
+      if (stopFlagRef.current) break;
+
+      if (!userText) {
+        emptyCount++;
+        if (emptyCount >= 5) break;
+        await new Promise(r => setTimeout(r, 1200));
+        continue;
+      }
+
+      emptyCount = 0;
+      setStatus("thinking");
+
+      try {
+        await axios.post("http://localhost:4000/api/respond", {
+          sessionId: session.id,
+          text: userText
+        });
+        if (onUpdate) await onUpdate();
+      } catch {}
+
+      const last = await axios.get(`http://localhost:4000/api/session/${session.id}`);
+      const hist = last.data.session.history;
+      const lastMsg = hist.reverse().find(m => m.role === "interviewer");
+
+      setStatus("speaking");
+      await speakText(lastMsg?.text || "");
+    }
+
+    setStatus("idle");
+  }
 
   function startVoice() {
     if (!session) return alert('Start a session first');
-    if (!recognitionRef.current) return alert('SpeechRecognition not supported in this browser. Use Chrome.');
+    if (!recognitionRef.current) return alert('SpeechRecognition not supported.');
     setActive(true);
     setStatus('listening');
     voiceLoop();
@@ -153,13 +134,13 @@ export default function VoiceMode({ session, onUpdate }) {
     stopFlagRef.current = true;
     setActive(false);
     setStatus('idle');
-    if (recognitionRef.current) try { recognitionRef.current.abort(); } catch(e){}
+    if (recognitionRef.current) try { recognitionRef.current.abort(); } catch {}
     window.speechSynthesis.cancel();
   }
 
   return (
     <div style={{display:'flex', flexDirection:'column', gap:8}}>
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+      <div style={{display:'flex', justifyContent:'space-between'}}>
         <div className="voice-indicator">
           {status === 'listening' && <div className="pulse" />}
           <div className="small">Status: <strong>{status}</strong></div>
@@ -167,15 +148,14 @@ export default function VoiceMode({ session, onUpdate }) {
         <div>
           {!active ? (
             <button onClick={startVoice}>Enter Voice Mode (Hands-free)</button>
-          ):(
+          ) : (
             <button onClick={stopVoice}>Stop Voice Mode</button>
           )}
         </div>
       </div>
-
-      <div className="small">
-        In Voice Mode you speak naturally. The interviewer will listen, respond, and then listen again. Use Chrome for best results.
-      </div>
+      <div className="small">Voice Mode listens, responds, then listens again.</div>
     </div>
   );
-}
+});
+
+export default VoiceMode;

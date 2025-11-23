@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import RoleSelector from './components/RoleSelector.jsx';
 import ChatMessages from './components/ChatMessages.jsx';
@@ -14,21 +14,47 @@ export default function App(){
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(()=>{ if(session) setHistory(session.history || []); }, [session]);
+  const voiceRef = useRef(); // NEW: reference to VoiceMode
+
+  useEffect(()=>{ 
+    if(session) setHistory(session.history || []); 
+  }, [session]);
 
   async function startSession(){
     setLoading(true);
-    try{
+    try {
       const resp = await axios.post('http://localhost:4000/api/session', { role, level });
       setSession(resp.data.session);
       setHistory(resp.data.session.history || []);
-      // if user chooses voice mode immediately, we will auto-start voice loop in VoiceMode
-    }catch(err){
+
+      // ⭐ AUTO-START VOICE MODE
+      if (mode === "voice") {
+
+        // step 1: get the last interviewer question (intro)
+        const lastMsg = resp.data.session.history.slice().reverse().find(h => h.role === "interviewer");
+
+        // step 2: speak the intro first
+        setTimeout(() => {
+          if (voiceRef.current && lastMsg?.text) {
+            voiceRef.current.speak(lastMsg.text).then(() => {
+              
+              // step 3: only after speaking, start listening
+              voiceRef.current.startVoice();
+            });
+          } else {
+            // fallback
+            voiceRef.current?.startVoice();
+          }
+        }, 300);
+      }
+
+    } catch(err){
       alert('Failed to start session: '+(err?.response?.data?.error || err.message));
-    }finally{ setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
-  // Called after a response (text or voice) was processed server-side to refresh history
   async function refreshSessionHistory(){
     if(!session) return;
     const resp = await axios.get(`http://localhost:4000/api/session/${session.id}`);
@@ -36,7 +62,6 @@ export default function App(){
     setHistory(resp.data.session.history || []);
   }
 
-  // Text send wrapper used by ChatInput
   async function sendTextAnswer(text){
     if(!session) return alert('Start session first');
     await axios.post('http://localhost:4000/api/respond', { sessionId: session.id, text });
@@ -49,21 +74,29 @@ export default function App(){
         <div className="brand">InterviewGuru</div>
         <div className="controls">
           <RoleSelector role={role} setRole={setRole} level={level} setLevel={setLevel}/>
-          <button className="mode-toggle" onClick={()=>setMode(m=> m==='chat' ? 'voice' : 'chat')}>
-            {mode==='chat' ? 'Switch to Voice Mode 🎤' : 'Switch to Chat Mode 💬'}
+          
+          {/* Mode Toggle */}
+          <button
+            className="mode-toggle"
+            onClick={()=>setMode(m => m === 'chat' ? 'voice' : 'chat')}
+          >
+            {mode === 'chat' ? 'Switch to Voice Mode 🎤' : 'Switch to Chat Mode 💬'}
           </button>
-          <button onClick={startSession} disabled={loading}>{loading? 'Starting...':'Start Interview'}</button>
+
+          <button onClick={startSession} disabled={loading}>
+            {loading? 'Starting...' : 'Start Interview'}
+          </button>
         </div>
       </div>
 
       <div className="layout">
         <div className="card chat-area">
-          <div style={{paddingBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+          <div style={{paddingBottom:8, display:'flex', justifyContent:'space-between'}}>
             <div className="small">Role: <strong>{role}</strong> • Level: <strong>{level}</strong></div>
             <div className="small">{session ? `Session: ${session.id}` : 'No session started'}</div>
           </div>
 
-          <div className="chat-window" id="chat-window">
+          <div className="chat-window">
             <ChatMessages history={history}/>
           </div>
 
@@ -73,7 +106,11 @@ export default function App(){
             </div>
           ) : (
             <div style={{paddingTop:12}}>
-              <VoiceMode session={session} onUpdate={refreshSessionHistory}/>
+              <VoiceMode 
+                ref={voiceRef}
+                session={session}
+                onUpdate={refreshSessionHistory}
+              />
             </div>
           )}
         </div>
@@ -88,11 +125,10 @@ export default function App(){
             <h3>How to Demo</h3>
             <ol style={{margin:'8px 0 0 18px'}}>
               <li>Start interview</li>
-              <li>Switch to Voice Mode for full audio flow</li>
-              <li>Answer aloud; interviewer will reply automatically</li>
-              <li>Switch back to Chat Mode to type or inspect conversation</li>
+              <li>(Optional) Switch to Voice Mode before starting</li>
+              <li>Answer aloud</li>
             </ol>
-            <div className="footer-note">Use Chrome for best voice support.</div>
+            <div className="footer-note">Use Chrome for voice support.</div>
           </div>
         </div>
       </div>

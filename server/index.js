@@ -26,7 +26,7 @@ async function callOllama(prompt) {
     {
       model: MODEL,
       prompt,
-      stream: false,
+      stream: true,
       temperature: 0.2
     },
     { timeout: 120_000 }

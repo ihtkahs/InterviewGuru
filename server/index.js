@@ -42,19 +42,39 @@ app.get('/health', (req, res) =>
 
 /* ---------------------- 🟢 CREATE INTERVIEW SESSION ---------------------- */
 
-app.post('/api/session', (req, res) => {
-  const { role = "Software Engineer", level = "Junior" } = req.body;
+app.post('/api/session', async (req, res) => {
+  try {
+    const { role = "Software Engineer", level = "Junior" } = req.body;
 
-  const session = createSession({ role, level });
+    const session = createSession({ role, level });
 
-  // do NOT ask a random question anymore.
-  // Add only interviewer introduction trigger.
-  appendToHistory(session.id, {
-    role: "interviewer",
-    text: "__INTERVIEW_START__"
-  });
+    // Add intro marker
+    appendToHistory(session.id, {
+      role: "interviewer",
+      text: "__INTERVIEW_START__"
+    });
 
-  return res.json({ ok: true, session });
+    // Immediately call LLM to generate intro
+    const introPrompt = buildPrompt({
+      role,
+      level,
+      history: getSession(session.id).history
+    });
+
+    const raw = await callOllama(introPrompt);
+    const parsed = tryParseJSON(raw) || {};
+
+    appendToHistory(session.id, {
+      role: "interviewer",
+      text: parsed.nextQuestion || "Let's begin. Tell me about yourself."
+    });
+
+    return res.json({ ok: true, session: getSession(session.id) });
+
+  } catch (err) {
+    console.error("session create error:", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 /* ------------------------ 🟢 GET SESSION ------------------------ */
@@ -89,7 +109,6 @@ app.post('/api/respond', async (req, res) => {
     });
 
     const rawResponse = await callOllama(prompt);
-
     const parsed = tryParseJSON(rawResponse) || { raw: rawResponse };
 
     // Fallback next question

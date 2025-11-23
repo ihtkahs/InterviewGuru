@@ -1,7 +1,8 @@
+// server/sessions.js
 // simple in-memory session store (replaceable by DB)
 const { v4: uuidv4 } = require('uuid');
 
-const sessions = new Map(); // id -> { createdAt, role, level, history }
+const sessions = new Map(); // id -> { createdAt, role, level, history, stage, persona, initialized, memorySummary }
 
 function createSession({ role, level }) {
   const id = uuidv4();
@@ -10,7 +11,11 @@ function createSession({ role, level }) {
     role,
     level,
     history: [],
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    stage: 0,            // 0 = intro
+    persona: null,
+    initialized: false,  // whether we primed the model for this session
+    memorySummary: ""    // compact memory summary for trimming
   };
   sessions.set(id, session);
   return session;

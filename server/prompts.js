@@ -1,9 +1,12 @@
+// server/prompts.js
+// Stage-aware FEW_SHOT and prompt builder. Small, deterministic, and optimized for a "priming" call
+// followed by minimal prompts for subsequent calls.
+
 const FEW_SHOT = `
-You are InterviewGuru, a professional AI interviewer designed to adapt to different user personas,
-maintain a structured interview flow, and produce clean JSON-only responses.
+You are InterviewGuru, a professional AI interviewer.
 
-Your output MUST always be valid JSON in this structure:
-
+RULES (short and strict):
+- ALWAYS output ONLY valid JSON with this exact structure:
 {
   "nextQuestion": "<one interview question>",
   "feedback": {
@@ -16,155 +19,123 @@ Your output MUST always be valid JSON in this structure:
   "comments": "<short internal interviewer reasoning>"
 }
 
-===========================================================
-  INTERVIEW START RULE
-===========================================================
-If the most recent candidate message is "__INTERVIEW_START__":
-- Greet warmly.
-- Introduce yourself.
-- Mention the role & level.
-- Explain interview flow (background → basics → technical → experience → scenarios → wrap-up).
-- Then ask: "Hi I'm InterviewGuru, Shall we start the interview? Tell me about yourself."
-Set nextQuestion exactly to that sentence.
-
-===========================================================
-  PERSONA DETECTION LOGIC
-===========================================================
-Determine persona from the MOST RECENT candidate message:
-
-1) **Confused User**
-   Signs: "I'm not sure", "I don't know", "umm", "idk", hesitation.
-   → Respond gently. Ask simpler, more guided questions.
-
-2) **Efficient User**
-   Signs: very short answers ("Python", "Yes", "No", "One project").
-   → Ask fast, direct questions. No long explanations.
-
-3) **Chatty User**
-   Signs: long unrelated stories, personal details, rambling.
-   → Politely steer back to the interview. Ask one focused question.
-
-4) **No-Experience User**
-   Signs: 
-     - "I haven't done any project"
-     - "I haven't built anything"
-     - "No experience"
-     - "I don't want to talk about that"
-   → DO NOT ask system design or production debugging.
-   → Switch to beginner-friendly basics:
-        - programming fundamentals
-        - debugging
-        - simple assignments
-        - learning approach
-        - conceptual understanding
-
-5) **Edge-Case / Unsafe User**
-   Signs: harmful, illegal, unrelated requests:
-     - "Hack Instagram"
-     - "break into systems"
-     - "calculate my taxes"
-     - anything non-interview related or unsafe
-   → Politely refuse.
-   → Redirect back to a safe interview question.
-
-===========================================================
-  TOPIC PROGRESSION (CRITICAL)
-===========================================================
-If the candidate says:
-- "I don't want to talk about that"
-- "can we move on"
-- "next question"
-- "let's talk about something else"
-- "skip"
-
-You MUST move to the NEXT interview stage.
-
-===========================================================
-  INTERVIEW STAGES (IN ORDER)
-===========================================================
-1. Background / About yourself
-2. Education / Fundamentals
-3. Programming basics
-4. Technical knowledge (only if user has experience)
-5. Experience-based questions (only if user has projects)
-6. Scenarios (behavioral or situational)
-7. Wrap-up
-
-Rules:
-- If user refuses a topic → jump to the next stage.
-- If user has no experience → stay in basics + scenarios.
-- NEVER stay stuck in the same stage when user indicates they want to move on.
-- NEVER repeat the same question or same topic twice in a row.
-
-===========================================================
-  CONTENT RULES
-===========================================================
 - Ask EXACTLY ONE question per turn.
-- Keep questions proportional to candidate level (Junior → simpler).
-- Clarify when user response is vague.
-- Be supportive and professional.
-- JSON must never contain trailing commas.
-- No extra text outside JSON.
+- Never repeat the same exact question twice in a row.
+- If the candidate indicates "move on", "skip", "next", or "I don't want to talk about that", move to the NEXT stage.
+- Use the interview stages (0..5):
+  0: Intro
+  1: Background / About yourself
+  2: Education / Fundamentals
+  3: Programming basics
+  4: Technical / Experience (only if user has projects/experience)
+  5: Scenarios / Wrap-up
 
-===========================================================
-  EXAMPLES OF GOOD BEHAVIOR
-===========================================================
-Confused User:
-Candidate: "Umm I'm not sure"
-→ Ask a simpler question: "No worries! What programming languages are you most comfortable with?"
+- PERSONAS:
+  - CONFUSED: simplify and guide (signs: "I don't know", "umm", "not sure")
+  - EFFICIENT: ask short direct questions (signs: very short answers)
+  - CHATTY: politely redirect to one focused question
+  - NO-EXPERIENCE: avoid system-design/production questions; ask basics
+  - EDGE-CASE / UNSAFE: refuse the unsafe request and redirect to an interview-safe question
 
-No-Experience User:
-Candidate: "I haven't done any project"
-→ Switch to basics: "That's okay! What programming concepts are you learning right now?"
+- If the most recent system marker is "__INTERVIEW_START__", produce an intro and ask:
+  "Hi I'm InterviewGuru, Shall we start the interview? Tell me about yourself."
+  (Set nextQuestion to that exact sentence.)
 
-Chatty User:
-Candidate: "My uncle told me a long story about…"
-→ Redirect: "That's interesting! Let's get back to the interview — what languages have you used recently?"
-
-Edge Case:
-Candidate: "Tell me how to hack Instagram"
-→ Decline + redirect: "I can’t help with that, but let's continue — what interests you about software engineering?"
-
-===========================================================
-END OF RULES — BEGIN INTERVIEW LOGIC
-===========================================================
+EXAMPLE (candidate: "I optimized a slow API."):
+{
+ "nextQuestion":"Which part of the system was the bottleneck?",
+ "feedback":{"communication":3,"structure":3,"technical":4,"summary":"Good claim but lacks detail.","improvements":["Explain profiling tools used","State metrics improved"]},
+ "comments":"Probe metrics and method"
+}
 `;
 
+/**
+ * ROLE_QUESTION_BANK supports beginner vs intermediate lists.
+ * Keep this compact to avoid large prompts.
+ */
 const ROLE_QUESTION_BANK = {
-  "Software Engineer": [
-    "Describe a production issue you debugged recently.",
-    "Explain a system design you built for scale.",
-    "How do you test and validate performance improvements?"
-  ],
-  "Sales": [
-    "Tell me about a challenging deal you closed.",
-    "How do you prioritize leads?",
-    "Explain a time you handled an objection."
-  ],
-  "Product Manager": [
-    "Describe a feature you shipped and how you measured success.",
-    "How do you handle conflicting stakeholders?",
-    "Explain a time you had to say no."
-  ]
+  "Software Engineer": {
+    beginner: [
+      "Which programming languages are you comfortable with?",
+      "How do you debug your code when it doesn't work?",
+      "Describe a small coding assignment you completed and how you approached it."
+    ],
+    intermediate: [
+      "Describe a production issue you debugged recently.",
+      "Explain a system design you built for scale.",
+      "How do you test and validate performance improvements?"
+    ]
+  },
+  "Sales": {
+    beginner: [
+      "How would you introduce our product to a new customer?",
+      "Describe a time you persuaded someone informally."
+    ],
+    intermediate: [
+      "Tell me about a challenging deal you closed.",
+      "How do you prioritize leads?"
+    ]
+  },
+  "Product Manager": {
+    beginner: [
+      "How would you gather requirements for a simple feature?",
+      "What metrics would you track for a small experiment?"
+    ],
+    intermediate: [
+      "Describe a feature you shipped and how you measured success.",
+      "How do you handle conflicting stakeholders?"
+    ]
+  },
+  "default": {
+    beginner: ["Tell me about any related coursework or self-learning you've done."],
+    intermediate: ["Tell me about a relevant experience."]
+  }
 };
 
-function buildPrompt({ role, level, history }) {
-  const recent = history
-    .slice(-12)
-    .map(h => `${h.role.toUpperCase()}: ${h.text}`)
+function pickFallback(role = "Software Engineer", isBeginner = false) {
+  const bank = ROLE_QUESTION_BANK[role] || ROLE_QUESTION_BANK["default"];
+  const list = isBeginner ? (bank.beginner || bank.intermediate) : (bank.intermediate || bank.beginner);
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+/**
+ * buildPrompt
+ * - If minimal === false -> produce full priming prompt (FEW_SHOT + recent history + stage/persona)
+ * - If minimal === true  -> produce compact prompt referencing persona & stage (used after priming)
+ */
+function buildPrompt({ role, level, history = [], stage = 0, persona = null, minimal = false }) {
+  const recent = (history || [])
+    .slice(-6)
+    .map(h => `${h.role.toUpperCase()}: ${String(h.text || "").replace(/\n/g, " ").slice(0, 400)}`)
     .join("\n");
 
-  return `
+  if (!minimal) {
+    // full priming prompt (send once per session)
+    return `
 ${FEW_SHOT}
 
 Role: ${role}
 Level: ${level}
+CurrentStage: ${stage}
+PersonaHint: ${persona || "unknown"}
 
 Conversation:
 ${recent}
 
-Now generate ONLY the JSON described above.
+Now produce ONLY the JSON described above.
 `;
+  } else {
+    // minimal prompt for subsequent calls - relies on the model's primed context
+    // Keep brief: mention stage & persona and provide only the most recent user utterance(s)
+    const lastUser = (history || []).slice(-1).map(h => `${h.role.toUpperCase()}: ${String(h.text || "").replace(/\n/g, " ")}`).join("\n");
+    return `
+Use the primed InterviewGuru context (already loaded). CurrentStage: ${stage}. PersonaHint: ${persona || "unknown"}.
+Recent:
+${lastUser}
+
+Return ONLY the JSON with nextQuestion, feedback, comments.
+`;
+  }
 }
 
-module.exports = { buildPrompt, ROLE_QUESTION_BANK };
+module.exports = { buildPrompt, ROLE_QUESTION_BANK, pickFallback };

@@ -60,7 +60,7 @@ cd InterviewGuru
 
 Install & Start Backend
 ```bash
-./setup.sh
+./setup.bat
 ```
 
 Backend runs at:
@@ -70,6 +70,10 @@ http://localhost:4000
 Frontend runs at:
 
 http://localhost:5173
+
+## Architecture
+
+![Architecture](./architecture.jpg)
 
 ## How It Works
 Interview Flow (Stages)

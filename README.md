@@ -73,7 +73,7 @@ http://localhost:5173
 
 ## Architecture
 
-![Architecture](./architecture.jpg)
+![Architecture](./architecture.jpg){width=60%}
 
 ## How It Works
 Interview Flow (Stages)

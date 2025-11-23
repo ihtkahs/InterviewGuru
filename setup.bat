@@ -16,7 +16,7 @@ if %errorlevel% neq 0 (
     exit /b
 )
 for /f "delims=" %%v in ('node -v') do set NODEV=%%v
-echo ✔ Node found: %NODEV%
+echo  Node found: %NODEV%
 
 REM ---------------------------
 REM 2) Check Ollama
@@ -30,7 +30,7 @@ if %errorlevel% neq 0 (
     pause
     exit /b
 )
-echo ✔ Ollama found
+echo  Ollama found
 
 REM ---------------------------
 REM 3) Check Model llama3.1
@@ -42,7 +42,7 @@ if %errorlevel% neq 0 (
     echo ⬇ Pulling llama3.1...
     ollama pull llama3.1
 ) else (
-    echo ✔ llama3.1 already installed
+    echo  llama3.1 already installed
 )
 
 REM ---------------------------
@@ -55,7 +55,7 @@ call npm install
 
 echo Starting server...
 start "" /B cmd /c "node index.js > server.log 2>&1"
-echo ✔ Backend running on port 4000
+echo  Backend running on port 4000
 cd ..
 
 REM ---------------------------

@@ -1,0 +1,90 @@
+# ------------------------
+# Node.js
+# ------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+.pnpm-store/
+
+# ------------------------
+# Vite
+# ------------------------
+dist/
+vite.config.timestamp-*
+*.local
+
+# Local dev server cache
+.vite/
+.cache/
+
+# ------------------------
+# Environment Files
+# ------------------------
+.env
+.env.*
+!.env.example
+
+# ------------------------
+# Audio / Chatbot Files
+# ------------------------
+/recordings/
+/audio-temp/
+/uploads/
+*.wav
+*.mp3
+*.m4a
+
+# If only temporary audio should be ignored:
+# !/public/audio/   # <-- Keep public audio assets
+
+# ------------------------
+# Logs
+# ------------------------
+logs/
+*.log
+*.log.*
+debug.log
+
+# ------------------------
+# IDE / Editor
+# ------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ------------------------
+# OS Files
+# ------------------------
+.DS_Store
+Thumbs.db
+
+# ------------------------
+# Build Tools
+# ------------------------
+/coverage/
+/out/
+/tmp/
+/temp/
+
+# ------------------------
+# TypeScript
+# ------------------------
+*.tsbuildinfo
+
+# ------------------------
+# Optional – If using Docker
+# ------------------------
+/docker-data/
+/docker/logs/
+
+# ------------------------
+# Optional – If using Playwright / Cypress
+# ------------------------
+/test-results/
+/playwright-report/
+/cypress/videos/
+/cypress/screenshots/
